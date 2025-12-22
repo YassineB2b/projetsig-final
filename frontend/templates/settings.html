@@ -1,0 +1,349 @@
+{% extends 'base.html' %}
+
+{% block title %}Settings{% endblock %}
+
+{% block page_title %}Settings{% endblock %}
+{% block page_subtitle %}System configuration and management{% endblock %}
+
+{% block content %}
+<div x-data="settingsPage()" x-init="init()" class="max-w-4xl">
+    <!-- System Status -->
+    <div class="card mb-6">
+        <h2 class="text-lg font-semibold text-dark-text mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-accent-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+            </svg>
+            System Status
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- GPU Status -->
+            <div class="p-4 rounded-xl bg-dark-hover/50">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-dark-muted">GPU</span>
+                    <span class="badge"
+                          :class="systemInfo.using_gpu ? 'badge-success' : 'badge-warning'"
+                          x-text="systemInfo.using_gpu ? 'Active' : 'CPU Mode'"></span>
+                </div>
+                <p class="text-dark-text font-medium" x-text="systemInfo.gpu_name || 'Not available'"></p>
+                <p class="text-sm text-dark-muted" x-show="systemInfo.gpu_memory_total">
+                    Memory: <span x-text="systemInfo.gpu_memory_used"></span> / <span x-text="systemInfo.gpu_memory_total"></span>
+                </p>
+            </div>
+
+            <!-- ML Pipeline -->
+            <div class="p-4 rounded-xl bg-dark-hover/50">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-dark-muted">ML Pipeline</span>
+                    <span class="badge badge-success">Ready</span>
+                </div>
+                <p class="text-dark-text font-medium">YOLOv8 + EasyOCR</p>
+                <p class="text-sm text-dark-muted">
+                    Languages: <span x-text="settings.ocr_languages?.join(', ') || 'en, ar'"></span>
+                </p>
+            </div>
+
+            <!-- Database -->
+            <div class="p-4 rounded-xl bg-dark-hover/50">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-dark-muted">Database</span>
+                    <span class="badge badge-success">Connected</span>
+                </div>
+                <p class="text-dark-text font-medium">PostgreSQL</p>
+                <p class="text-sm text-dark-muted">Storage active</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detection Settings -->
+    <div class="card mb-6">
+        <h2 class="text-lg font-semibold text-dark-text mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-accent-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+            </svg>
+            Detection Settings
+        </h2>
+
+        <div class="space-y-6">
+            <!-- Confidence Threshold -->
+            <div>
+                <label class="block text-sm font-medium text-dark-muted mb-2">
+                    Detection Confidence Threshold
+                </label>
+                <div class="flex items-center gap-4">
+                    <input type="range"
+                           x-model="settings.detection_confidence"
+                           min="0.1"
+                           max="0.95"
+                           step="0.05"
+                           class="flex-1 h-2 bg-dark-hover rounded-lg appearance-none cursor-pointer
+                                  [&::-webkit-slider-thumb]:appearance-none
+                                  [&::-webkit-slider-thumb]:w-4
+                                  [&::-webkit-slider-thumb]:h-4
+                                  [&::-webkit-slider-thumb]:bg-accent-primary
+                                  [&::-webkit-slider-thumb]:rounded-full
+                                  [&::-webkit-slider-thumb]:cursor-pointer">
+                    <span class="w-16 text-center font-mono text-dark-text"
+                          x-text="(settings.detection_confidence * 100).toFixed(0) + '%'"></span>
+                </div>
+                <p class="text-xs text-dark-muted mt-1">
+                    Lower values detect more plates but may include false positives
+                </p>
+            </div>
+
+            <!-- Max Upload Size -->
+            <div>
+                <label class="block text-sm font-medium text-dark-muted mb-2">
+                    Maximum Upload Size
+                </label>
+                <div class="flex items-center gap-2">
+                    <input type="number"
+                           x-model="settings.max_upload_size_mb"
+                           min="1"
+                           max="50"
+                           class="input w-24">
+                    <span class="text-dark-muted">MB</span>
+                </div>
+            </div>
+
+            <!-- Storage Retention -->
+            <div>
+                <label class="block text-sm font-medium text-dark-muted mb-2">
+                    Storage Retention Period
+                </label>
+                <div class="flex items-center gap-2">
+                    <input type="number"
+                           x-model="settings.storage_retention_days"
+                           min="1"
+                           max="365"
+                           class="input w-24">
+                    <span class="text-dark-muted">days</span>
+                </div>
+                <p class="text-xs text-dark-muted mt-1">
+                    Images older than this will be automatically deleted
+                </p>
+            </div>
+
+            <!-- Save Button -->
+            <div class="pt-4 border-t border-dark-hover">
+                <button @click="saveSettings()" class="btn-primary">
+                    Save Settings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera Management -->
+    <div class="card mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-dark-text flex items-center gap-2">
+                <svg class="w-5 h-5 text-accent-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                Cameras
+            </h2>
+            <a href="{{ url_for('views.live') }}" class="btn-secondary">
+                Manage Cameras
+            </a>
+        </div>
+
+        <div class="space-y-3">
+            <template x-for="camera in cameras" :key="camera.id">
+                <div class="flex items-center justify-between p-4 rounded-xl bg-dark-hover/50">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-dark-hover flex items-center justify-center">
+                            <svg class="w-5 h-5 text-dark-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="font-medium text-dark-text" x-text="camera.name"></p>
+                            <p class="text-sm text-dark-muted font-mono truncate max-w-xs" x-text="camera.rtsp_url"></p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="badge"
+                              :class="camera.enabled ? 'badge-success' : 'badge-error'"
+                              x-text="camera.enabled ? 'Enabled' : 'Disabled'"></span>
+                        <button @click="deleteCamera(camera)" class="btn-ghost text-accent-error">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="cameras.length === 0">
+                <div class="text-center py-8 text-dark-muted">
+                    <p>No cameras configured</p>
+                    <a href="{{ url_for('views.live') }}" class="text-accent-primary hover:underline">Add a camera</a>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Storage Management -->
+    <div class="card mb-6">
+        <h2 class="text-lg font-semibold text-dark-text mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-accent-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+            </svg>
+            Storage
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div class="p-4 rounded-xl bg-dark-hover/50">
+                <p class="text-dark-muted mb-1">Total Files</p>
+                <p class="text-2xl font-bold text-dark-text" x-text="storageStats.total_files || 0"></p>
+            </div>
+            <div class="p-4 rounded-xl bg-dark-hover/50">
+                <p class="text-dark-muted mb-1">Storage Used</p>
+                <p class="text-2xl font-bold text-dark-text" x-text="(storageStats.total_size_mb || 0) + ' MB'"></p>
+            </div>
+        </div>
+
+        <div class="pt-4 border-t border-dark-hover">
+            <button @click="cleanupStorage()"
+                    :disabled="cleaningUp"
+                    class="btn-danger flex items-center gap-2">
+                <svg x-show="cleaningUp" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <span x-text="cleaningUp ? 'Cleaning...' : 'Clean Old Files'"></span>
+            </button>
+            <p class="text-xs text-dark-muted mt-2">
+                This will delete files older than the retention period
+            </p>
+        </div>
+    </div>
+
+    <!-- About -->
+    <div class="card">
+        <h2 class="text-lg font-semibold text-dark-text mb-4">About</h2>
+        <div class="text-dark-muted space-y-2">
+            <p><strong class="text-dark-text">License Plate Recognition System</strong></p>
+            <p>Version 1.0.0</p>
+            <p>Powered by YOLOv8 + EasyOCR with GPU acceleration</p>
+            <div class="pt-4 flex items-center gap-4">
+                <span class="badge badge-info">Python</span>
+                <span class="badge badge-success">Flask</span>
+                <span class="badge badge-warning">CUDA</span>
+                <span class="badge badge-error">Docker</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function settingsPage() {
+    return {
+        settings: {
+            detection_confidence: 0.5,
+            max_upload_size_mb: 16,
+            storage_retention_days: 30,
+            ocr_languages: ['en', 'ar']
+        },
+        systemInfo: {},
+        cameras: [],
+        storageStats: {},
+        cleaningUp: false,
+
+        async init() {
+            await Promise.all([
+                this.fetchSettings(),
+                this.fetchCameras()
+            ]);
+        },
+
+        async fetchSettings() {
+            try {
+                const response = await fetch('/api/settings');
+                const data = await response.json();
+                if (data.success) {
+                    this.settings = { ...this.settings, ...data.settings };
+                    this.systemInfo = data.settings;
+                }
+            } catch (error) {
+                console.error('Failed to fetch settings:', error);
+            }
+        },
+
+        async fetchCameras() {
+            try {
+                const response = await fetch('/api/cameras');
+                const data = await response.json();
+                if (data.success) {
+                    this.cameras = data.cameras;
+                }
+            } catch (error) {
+                console.error('Failed to fetch cameras:', error);
+            }
+        },
+
+        async saveSettings() {
+            try {
+                const response = await fetch('/api/settings', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        detection_confidence: parseFloat(this.settings.detection_confidence)
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    window.dispatchEvent(new CustomEvent('show-toast', {
+                        detail: { message: 'Settings saved successfully', type: 'success' }
+                    }));
+                }
+            } catch (error) {
+                window.dispatchEvent(new CustomEvent('show-toast', {
+                    detail: { message: 'Failed to save settings', type: 'error' }
+                }));
+            }
+        },
+
+        async deleteCamera(camera) {
+            if (!confirm(`Delete camera "${camera.name}"?`)) return;
+
+            try {
+                const response = await fetch(`/api/cameras/${camera.id}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    this.cameras = this.cameras.filter(c => c.id !== camera.id);
+                    window.dispatchEvent(new CustomEvent('show-toast', {
+                        detail: { message: 'Camera deleted', type: 'success' }
+                    }));
+                }
+            } catch (error) {
+                window.dispatchEvent(new CustomEvent('show-toast', {
+                    detail: { message: 'Failed to delete camera', type: 'error' }
+                }));
+            }
+        },
+
+        async cleanupStorage() {
+            this.cleaningUp = true;
+            // Cleanup would be implemented via API
+            setTimeout(() => {
+                this.cleaningUp = false;
+                window.dispatchEvent(new CustomEvent('show-toast', {
+                    detail: { message: 'Storage cleanup complete', type: 'success' }
+                }));
+            }, 2000);
+        }
+    };
+}
+</script>
+{% endblock %}

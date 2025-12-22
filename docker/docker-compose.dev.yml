@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  # LPR Application - Development Mode
+  lpr-app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    container_name: lpr-dev
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - DATABASE_URL=postgresql://lpr:lpr_password@db:5432/lpr_db
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=dev-secret-key
+      - UPLOAD_FOLDER=/app/storage/uploads
+      - DETECTION_FOLDER=/app/storage/detections
+    ports:
+      - "5000:5000"
+    volumes:
+      # Mount source code for hot reload
+      - ../backend:/app/backend
+      - ../ml:/app/ml
+      - ../frontend:/app/frontend
+      - ../scripts:/app/scripts
+      - ../storage:/app/storage
+    depends_on:
+      - db
+      - redis
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - lpr-network
+    stdin_open: true
+    tty: true
+
+  # PostgreSQL Database - Development
+  db:
+    image: postgres:15-alpine
+    container_name: lpr-db-dev
+    environment:
+      - POSTGRES_USER=lpr
+      - POSTGRES_PASSWORD=lpr_password
+      - POSTGRES_DB=lpr_db
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ../database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - lpr-network
+
+  # Redis Cache - Development
+  redis:
+    image: redis:7-alpine
+    container_name: lpr-redis-dev
+    ports:
+      - "6379:6379"
+    networks:
+      - lpr-network
+
+volumes:
+  postgres_dev_data:
+    driver: local
+
+networks:
+  lpr-network:
+    driver: bridge

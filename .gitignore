@@ -1,0 +1,134 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Storage (keep structure, ignore contents)
+storage/uploads/*
+storage/detections/*
+storage/logs/*
+!storage/uploads/.gitkeep
+!storage/detections/.gitkeep
+!storage/logs/.gitkeep
+
+# ML Models (large files)
+ml/models/*.pt
+ml/models/*.pth
+ml/models/*.onnx
+ml/models/*.engine
+!ml/models/.gitkeep
+!ml/models/README.md
+
+# Database
+*.db
+*.sqlite3
+
+# Compiled CSS (regenerate with npm run build:css)
+frontend/static/css/output.css
+
+# Secrets
+*.pem
+*.key
+secrets/
+
+# Docker
+docker-compose.override.yml
+
+# Windows reserved filenames
+nul

@@ -1,0 +1,232 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom base styles */
+@layer base {
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply bg-dark-bg text-dark-text;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-dark-card;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-dark-hover rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-dark-border;
+  }
+}
+
+/* Custom component styles */
+@layer components {
+  /* Cards */
+  .card {
+    @apply bg-dark-card rounded-xl border border-dark-hover p-6 shadow-lg;
+  }
+
+  .card-hover {
+    @apply card transition-all duration-200 hover:border-accent-primary hover:shadow-glow;
+  }
+
+  /* Buttons */
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-dark-bg;
+  }
+
+  .btn-primary {
+    @apply btn bg-accent-primary text-white hover:bg-accent-hover focus:ring-accent-primary;
+  }
+
+  .btn-secondary {
+    @apply btn bg-dark-hover text-dark-text hover:bg-dark-border focus:ring-dark-border;
+  }
+
+  .btn-success {
+    @apply btn bg-accent-success text-white hover:bg-green-600 focus:ring-accent-success;
+  }
+
+  .btn-danger {
+    @apply btn bg-accent-error text-white hover:bg-red-600 focus:ring-accent-error;
+  }
+
+  .btn-ghost {
+    @apply btn bg-transparent text-dark-muted hover:bg-dark-hover hover:text-dark-text;
+  }
+
+  /* Inputs */
+  .input {
+    @apply w-full px-4 py-2 bg-dark-bg border border-dark-hover rounded-lg
+           text-dark-text placeholder-dark-muted
+           focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary
+           transition-colors duration-200;
+  }
+
+  /* Sidebar */
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-3 text-dark-muted rounded-lg
+           transition-all duration-200 hover:bg-dark-hover hover:text-dark-text;
+  }
+
+  .sidebar-link.active {
+    @apply bg-accent-primary/10 text-accent-primary border-l-4 border-accent-primary -ml-1 pl-5;
+  }
+
+  /* Stats cards */
+  .stat-card {
+    @apply card flex items-center gap-4;
+  }
+
+  .stat-icon {
+    @apply p-3 rounded-xl;
+  }
+
+  .stat-value {
+    @apply text-3xl font-bold text-dark-text;
+  }
+
+  .stat-label {
+    @apply text-sm text-dark-muted;
+  }
+
+  /* Table styles */
+  .table-container {
+    @apply overflow-x-auto rounded-xl border border-dark-hover;
+  }
+
+  .table {
+    @apply w-full;
+  }
+
+  .table th {
+    @apply px-4 py-3 text-left text-sm font-semibold text-dark-muted bg-dark-hover;
+  }
+
+  .table td {
+    @apply px-4 py-3 text-sm border-t border-dark-hover;
+  }
+
+  .table tr:hover td {
+    @apply bg-dark-hover/50;
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-success {
+    @apply badge bg-accent-success/20 text-accent-success;
+  }
+
+  .badge-warning {
+    @apply badge bg-accent-warning/20 text-accent-warning;
+  }
+
+  .badge-error {
+    @apply badge bg-accent-error/20 text-accent-error;
+  }
+
+  .badge-info {
+    @apply badge bg-accent-info/20 text-accent-info;
+  }
+
+  /* Upload zone */
+  .upload-zone {
+    @apply border-2 border-dashed border-dark-hover rounded-xl p-8
+           text-center transition-all duration-200 cursor-pointer
+           hover:border-accent-primary hover:bg-accent-primary/5;
+  }
+
+  .upload-zone.dragover {
+    @apply border-accent-primary bg-accent-primary/10;
+  }
+
+  /* Toast notifications */
+  .toast {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg
+           animate-in slide-in-from-right-5 fade-in duration-200;
+  }
+
+  .toast-success {
+    @apply toast bg-accent-success text-white;
+  }
+
+  .toast-error {
+    @apply toast bg-accent-error text-white;
+  }
+
+  .toast-info {
+    @apply toast bg-accent-info text-white;
+  }
+
+  /* Detection card */
+  .detection-card {
+    @apply card-hover flex gap-4;
+  }
+
+  .detection-image {
+    @apply w-24 h-16 rounded-lg object-cover bg-dark-hover;
+  }
+
+  .plate-number {
+    @apply font-mono text-lg font-bold text-accent-primary;
+  }
+
+  /* Camera feed */
+  .camera-feed {
+    @apply relative rounded-xl overflow-hidden bg-dark-card;
+  }
+
+  .camera-overlay {
+    @apply absolute inset-0 flex items-center justify-center bg-black/50;
+  }
+
+  .camera-status {
+    @apply absolute top-2 right-2 flex items-center gap-1 px-2 py-1
+           rounded-full text-xs font-medium;
+  }
+
+  .camera-status.online {
+    @apply bg-accent-success/20 text-accent-success;
+  }
+
+  .camera-status.offline {
+    @apply bg-accent-error/20 text-accent-error;
+  }
+}
+
+/* Utility classes */
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-accent-primary to-accent-info bg-clip-text text-transparent;
+  }
+
+  .animate-in {
+    animation: animateIn 0.2s ease-out;
+  }
+
+  @keyframes animateIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}

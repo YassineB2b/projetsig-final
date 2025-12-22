@@ -1,0 +1,411 @@
+{% extends 'base.html' %}
+
+{% block title %}History{% endblock %}
+
+{% block page_title %}Detection History{% endblock %}
+{% block page_subtitle %}Browse and search past detections{% endblock %}
+
+{% block content %}
+<div x-data="historyPage()" x-init="init()">
+    <!-- Filters -->
+    <div class="card mb-6">
+        <div class="flex flex-wrap items-end gap-4">
+            <!-- Search -->
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-sm font-medium text-dark-muted mb-2">Search Plate</label>
+                <div class="relative">
+                    <input type="text"
+                           x-model="filters.plateSearch"
+                           @input.debounce.300ms="fetchDetections()"
+                           class="input pl-10"
+                           placeholder="Enter plate number...">
+                    <svg class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Date Range -->
+            <div>
+                <label class="block text-sm font-medium text-dark-muted mb-2">Start Date</label>
+                <input type="date"
+                       x-model="filters.startDate"
+                       @change="fetchDetections()"
+                       class="input">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-dark-muted mb-2">End Date</label>
+                <input type="date"
+                       x-model="filters.endDate"
+                       @change="fetchDetections()"
+                       class="input">
+            </div>
+
+            <!-- Confidence Filter -->
+            <div>
+                <label class="block text-sm font-medium text-dark-muted mb-2">Min Confidence</label>
+                <select x-model="filters.minConfidence"
+                        @change="fetchDetections()"
+                        class="input">
+                    <option value="">All</option>
+                    <option value="0.9">90%+</option>
+                    <option value="0.8">80%+</option>
+                    <option value="0.7">70%+</option>
+                    <option value="0.5">50%+</option>
+                </select>
+            </div>
+
+            <!-- Source Filter -->
+            <div>
+                <label class="block text-sm font-medium text-dark-muted mb-2">Source</label>
+                <select x-model="filters.sourceType"
+                        @change="fetchDetections()"
+                        class="input">
+                    <option value="">All Sources</option>
+                    <option value="upload">Upload</option>
+                    <option value="camera">Camera</option>
+                    <option value="url">URL</option>
+                </select>
+            </div>
+
+            <!-- Clear Filters -->
+            <button @click="clearFilters()" class="btn-ghost">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Results Summary -->
+    <div class="flex items-center justify-between mb-4">
+        <p class="text-dark-muted">
+            Showing <span class="text-dark-text font-medium" x-text="detections.length"></span>
+            of <span class="text-dark-text font-medium" x-text="pagination.total"></span> detections
+        </p>
+
+        <div class="flex items-center gap-2">
+            <button @click="exportCSV()" class="btn-secondary flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Export CSV
+            </button>
+        </div>
+    </div>
+
+    <!-- Results Table -->
+    <div class="card overflow-hidden p-0">
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Image</th>
+                        <th>Plate Number</th>
+                        <th>Confidence</th>
+                        <th>Source</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="detection in detections" :key="detection.id">
+                        <tr class="hover:bg-dark-hover/30">
+                            <td>
+                                <div class="w-20 h-14 rounded-lg bg-dark-hover overflow-hidden">
+                                    <template x-if="detection.cropped_image_url">
+                                        <img :src="detection.cropped_image_url"
+                                             class="w-full h-full object-cover cursor-pointer"
+                                             @click="showImage(detection)">
+                                    </template>
+                                    <template x-if="!detection.cropped_image_url">
+                                        <div class="w-full h-full flex items-center justify-center">
+                                            <svg class="w-6 h-6 text-dark-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                            </svg>
+                                        </div>
+                                    </template>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="font-mono font-bold text-accent-primary text-lg"
+                                      x-text="detection.plate_number || 'Unknown'"></span>
+                            </td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-16 h-2 bg-dark-hover rounded-full overflow-hidden">
+                                        <div class="h-full rounded-full"
+                                             :class="detection.confidence > 0.8 ? 'bg-accent-success' :
+                                                     detection.confidence > 0.5 ? 'bg-accent-warning' : 'bg-accent-error'"
+                                             :style="'width: ' + (detection.confidence * 100) + '%'"></div>
+                                    </div>
+                                    <span class="text-dark-muted" x-text="(detection.confidence * 100).toFixed(0) + '%'"></span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge"
+                                      :class="{
+                                          'badge-info': detection.source_type === 'upload',
+                                          'badge-success': detection.source_type === 'camera',
+                                          'badge-warning': detection.source_type === 'url'
+                                      }"
+                                      x-text="detection.source_type"></span>
+                            </td>
+                            <td>
+                                <p class="text-dark-text" x-text="formatDate(detection.created_at)"></p>
+                                <p class="text-xs text-dark-muted" x-text="formatTime(detection.created_at)"></p>
+                            </td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    <button @click="showImage(detection)"
+                                            class="p-2 text-dark-muted hover:text-dark-text rounded-lg hover:bg-dark-hover">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                        </svg>
+                                    </button>
+                                    <button @click="deleteDetection(detection)"
+                                            class="p-2 text-dark-muted hover:text-accent-error rounded-lg hover:bg-dark-hover">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+
+                    <template x-if="detections.length === 0 && !loading">
+                        <tr>
+                            <td colspan="6" class="text-center py-12">
+                                <svg class="w-16 h-16 mx-auto text-dark-muted mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <p class="text-dark-muted">No detections found</p>
+                                <a href="{{ url_for('views.upload') }}" class="text-accent-primary hover:underline">Upload an image</a>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Loading State -->
+        <div x-show="loading" class="p-8 text-center">
+            <svg class="w-8 h-8 mx-auto text-accent-primary animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="mt-4 flex items-center justify-between" x-show="pagination.pages > 1">
+        <button @click="prevPage()"
+                :disabled="pagination.page <= 1"
+                class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
+            Previous
+        </button>
+
+        <div class="flex items-center gap-2">
+            <template x-for="p in visiblePages" :key="p">
+                <button @click="goToPage(p)"
+                        class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors"
+                        :class="p === pagination.page ? 'bg-accent-primary text-white' : 'bg-dark-hover text-dark-muted hover:text-dark-text'"
+                        x-text="p"></button>
+            </template>
+        </div>
+
+        <button @click="nextPage()"
+                :disabled="!pagination.has_next"
+                class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
+            Next
+        </button>
+    </div>
+
+    <!-- Image Modal -->
+    <div x-show="selectedImage"
+         x-transition
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+         @click.self="selectedImage = null">
+        <div class="max-w-4xl max-h-[90vh] m-4">
+            <img :src="selectedImage?.original_image_url || selectedImage?.cropped_image_url"
+                 class="max-w-full max-h-full object-contain rounded-xl">
+        </div>
+        <button @click="selectedImage = null"
+                class="absolute top-4 right-4 p-2 bg-dark-card rounded-full text-dark-text hover:bg-dark-hover">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
+</div>
+
+<script>
+function historyPage() {
+    return {
+        detections: [],
+        loading: false,
+        selectedImage: null,
+        pagination: {
+            page: 1,
+            per_page: 20,
+            total: 0,
+            pages: 0,
+            has_next: false,
+            has_prev: false
+        },
+        filters: {
+            plateSearch: '',
+            startDate: '',
+            endDate: '',
+            minConfidence: '',
+            sourceType: ''
+        },
+
+        async init() {
+            await this.fetchDetections();
+        },
+
+        async fetchDetections() {
+            this.loading = true;
+
+            const params = new URLSearchParams({
+                page: this.pagination.page,
+                per_page: this.pagination.per_page
+            });
+
+            if (this.filters.plateSearch) params.append('plate_search', this.filters.plateSearch);
+            if (this.filters.startDate) params.append('start_date', this.filters.startDate);
+            if (this.filters.endDate) params.append('end_date', this.filters.endDate);
+            if (this.filters.minConfidence) params.append('min_confidence', this.filters.minConfidence);
+            if (this.filters.sourceType) params.append('source_type', this.filters.sourceType);
+
+            try {
+                const response = await fetch(`/api/detections?${params}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    this.detections = data.detections;
+                    this.pagination = data.pagination;
+                }
+            } catch (error) {
+                console.error('Failed to fetch detections:', error);
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        clearFilters() {
+            this.filters = {
+                plateSearch: '',
+                startDate: '',
+                endDate: '',
+                minConfidence: '',
+                sourceType: ''
+            };
+            this.pagination.page = 1;
+            this.fetchDetections();
+        },
+
+        get visiblePages() {
+            const pages = [];
+            const current = this.pagination.page;
+            const total = this.pagination.pages;
+
+            let start = Math.max(1, current - 2);
+            let end = Math.min(total, current + 2);
+
+            for (let i = start; i <= end; i++) {
+                pages.push(i);
+            }
+            return pages;
+        },
+
+        prevPage() {
+            if (this.pagination.page > 1) {
+                this.pagination.page--;
+                this.fetchDetections();
+            }
+        },
+
+        nextPage() {
+            if (this.pagination.has_next) {
+                this.pagination.page++;
+                this.fetchDetections();
+            }
+        },
+
+        goToPage(page) {
+            this.pagination.page = page;
+            this.fetchDetections();
+        },
+
+        showImage(detection) {
+            this.selectedImage = detection;
+        },
+
+        async deleteDetection(detection) {
+            if (!confirm('Are you sure you want to delete this detection?')) return;
+
+            try {
+                const response = await fetch(`/api/detections/${detection.id}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    this.fetchDetections();
+                    window.dispatchEvent(new CustomEvent('show-toast', {
+                        detail: { message: 'Detection deleted', type: 'success' }
+                    }));
+                }
+            } catch (error) {
+                window.dispatchEvent(new CustomEvent('show-toast', {
+                    detail: { message: 'Failed to delete detection', type: 'error' }
+                }));
+            }
+        },
+
+        exportCSV() {
+            const headers = ['Plate Number', 'Confidence', 'Source', 'Date', 'Processing Time'];
+            const rows = this.detections.map(d => [
+                d.plate_number || '',
+                (d.confidence * 100).toFixed(1) + '%',
+                d.source_type,
+                d.created_at,
+                d.processing_time_ms + 'ms'
+            ]);
+
+            const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `detections-${Date.now()}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        },
+
+        formatDate(dateString) {
+            if (!dateString) return '';
+            return new Date(dateString).toLocaleDateString();
+        },
+
+        formatTime(dateString) {
+            if (!dateString) return '';
+            return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+    };
+}
+</script>
+{% endblock %}

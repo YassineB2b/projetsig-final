@@ -1,0 +1,287 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload{% endblock %}
+
+{% block page_title %}Upload Image{% endblock %}
+{% block page_subtitle %}Detect license plates from images{% endblock %}
+
+{% block content %}
+<div x-data="uploadPage()" class="max-w-4xl mx-auto">
+    <!-- Upload Zone -->
+    <div class="card mb-6">
+        <h2 class="text-lg font-semibold text-dark-text mb-4">Upload Image</h2>
+
+        <div class="upload-zone relative"
+             @dragover.prevent="dragover = true"
+             @dragleave.prevent="dragover = false"
+             @drop.prevent="handleDrop($event)"
+             :class="{ 'dragover': dragover }">
+
+            <input type="file"
+                   id="file-upload"
+                   class="hidden"
+                   accept="image/*"
+                   multiple
+                   @change="handleFileSelect($event)">
+
+            <template x-if="!selectedFiles.length">
+                <div class="py-8">
+                    <svg class="w-16 h-16 mx-auto text-dark-muted mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                    <p class="text-lg text-dark-text mb-2">
+                        Drop images here or
+                        <label for="file-upload" class="text-accent-primary cursor-pointer hover:underline">browse</label>
+                    </p>
+                    <p class="text-sm text-dark-muted">Supports PNG, JPG, JPEG, GIF, BMP, WEBP up to 16MB each</p>
+                    <p class="text-sm text-dark-muted mt-1">You can upload multiple images at once</p>
+                </div>
+            </template>
+
+            <!-- Selected Files Preview -->
+            <template x-if="selectedFiles.length">
+                <div class="py-4">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4">
+                        <template x-for="(file, index) in selectedFiles" :key="index">
+                            <div class="relative group">
+                                <img :src="file.preview"
+                                     class="w-full h-24 object-cover rounded-lg bg-dark-hover">
+                                <button @click.stop="removeFile(index)"
+                                        class="absolute top-1 right-1 p-1 bg-dark-bg/80 rounded-full
+                                               opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <svg class="w-4 h-4 text-dark-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </button>
+                                <p class="text-xs text-dark-muted mt-1 truncate" x-text="file.name"></p>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="flex items-center justify-center gap-3">
+                        <label for="file-upload" class="btn-secondary cursor-pointer">
+                            Add More
+                        </label>
+                        <button @click="clearFiles()" class="btn-ghost">
+                            Clear All
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Process Button -->
+        <div class="mt-4 flex items-center justify-between">
+            <p class="text-sm text-dark-muted" x-show="selectedFiles.length">
+                <span x-text="selectedFiles.length"></span> file(s) selected
+            </p>
+            <button @click="processFiles()"
+                    :disabled="!selectedFiles.length || processing"
+                    class="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg x-show="processing" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <span x-text="processing ? 'Processing...' : 'Detect Plates'"></span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Results Section -->
+    <div x-show="results.length > 0" class="space-y-4">
+        <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-dark-text">Results</h2>
+            <button @click="exportResults()" class="btn-secondary flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Export JSON
+            </button>
+        </div>
+
+        <template x-for="(result, index) in results" :key="index">
+            <div class="card">
+                <div class="flex flex-col md:flex-row gap-6">
+                    <!-- Image Preview -->
+                    <div class="md:w-1/3">
+                        <div class="relative rounded-xl overflow-hidden bg-dark-hover">
+                            <img :src="result.previewUrl"
+                                 class="w-full h-48 object-contain"
+                                 @click="showImageModal(result)">
+                            <div class="absolute bottom-2 right-2 flex gap-1">
+                                <span class="badge bg-dark-bg/80 text-dark-text">
+                                    <span x-text="result.data?.processing_time_ms || 0"></span>ms
+                                </span>
+                            </div>
+                        </div>
+                        <p class="text-sm text-dark-muted mt-2 truncate" x-text="result.filename"></p>
+                    </div>
+
+                    <!-- Detection Results -->
+                    <div class="flex-1">
+                        <template x-if="result.data?.success && result.data?.plates?.length > 0">
+                            <div class="space-y-4">
+                                <template x-for="(plate, pIndex) in result.data.plates" :key="pIndex">
+                                    <div class="p-4 rounded-xl bg-dark-hover/50 border border-dark-hover">
+                                        <div class="flex items-start justify-between mb-3">
+                                            <div>
+                                                <p class="text-xs text-dark-muted mb-1">Plate #<span x-text="pIndex + 1"></span></p>
+                                                <p class="plate-number text-2xl" x-text="plate.plate_number || 'No text detected'"></p>
+                                            </div>
+                                            <span class="badge"
+                                                  :class="plate.detection_confidence > 0.8 ? 'badge-success' :
+                                                          plate.detection_confidence > 0.5 ? 'badge-warning' : 'badge-error'">
+                                                <span x-text="(plate.detection_confidence * 100).toFixed(1)"></span>%
+                                            </span>
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-4 text-sm">
+                                            <div>
+                                                <p class="text-dark-muted">Detection Confidence</p>
+                                                <p class="text-dark-text" x-text="(plate.detection_confidence * 100).toFixed(2) + '%'"></p>
+                                            </div>
+                                            <div>
+                                                <p class="text-dark-muted">OCR Confidence</p>
+                                                <p class="text-dark-text" x-text="(plate.ocr_confidence * 100).toFixed(2) + '%'"></p>
+                                            </div>
+                                            <div class="col-span-2">
+                                                <p class="text-dark-muted">Bounding Box</p>
+                                                <p class="text-dark-text font-mono text-xs" x-text="JSON.stringify(plate.bbox)"></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <template x-if="result.data?.success && (!result.data?.plates || result.data?.plates?.length === 0)">
+                            <div class="flex items-center justify-center h-full py-8">
+                                <div class="text-center text-dark-muted">
+                                    <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <p>No license plates detected in this image</p>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template x-if="!result.data?.success">
+                            <div class="flex items-center justify-center h-full py-8">
+                                <div class="text-center text-accent-error">
+                                    <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <p x-text="result.data?.error?.message || 'Failed to process image'"></p>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+</div>
+
+<script>
+function uploadPage() {
+    return {
+        dragover: false,
+        selectedFiles: [],
+        processing: false,
+        results: [],
+
+        handleDrop(event) {
+            this.dragover = false;
+            const files = Array.from(event.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+            this.addFiles(files);
+        },
+
+        handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            this.addFiles(files);
+            event.target.value = '';
+        },
+
+        addFiles(files) {
+            files.forEach(file => {
+                this.selectedFiles.push({
+                    file: file,
+                    name: file.name,
+                    preview: URL.createObjectURL(file)
+                });
+            });
+        },
+
+        removeFile(index) {
+            URL.revokeObjectURL(this.selectedFiles[index].preview);
+            this.selectedFiles.splice(index, 1);
+        },
+
+        clearFiles() {
+            this.selectedFiles.forEach(f => URL.revokeObjectURL(f.preview));
+            this.selectedFiles = [];
+        },
+
+        async processFiles() {
+            if (!this.selectedFiles.length) return;
+
+            this.processing = true;
+            this.results = [];
+
+            for (const fileObj of this.selectedFiles) {
+                const formData = new FormData();
+                formData.append('image', fileObj.file);
+
+                try {
+                    const response = await fetch('/api/detect', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    this.results.push({
+                        filename: fileObj.name,
+                        previewUrl: fileObj.preview,
+                        data: data
+                    });
+                } catch (error) {
+                    this.results.push({
+                        filename: fileObj.name,
+                        previewUrl: fileObj.preview,
+                        data: { success: false, error: { message: error.message } }
+                    });
+                }
+            }
+
+            this.processing = false;
+
+            const successCount = this.results.filter(r => r.data?.success && r.data?.plates?.length > 0).length;
+            window.dispatchEvent(new CustomEvent('show-toast', {
+                detail: {
+                    message: `Processed ${this.results.length} images. Found plates in ${successCount}.`,
+                    type: successCount > 0 ? 'success' : 'info'
+                }
+            }));
+        },
+
+        exportResults() {
+            const exportData = this.results.map(r => ({
+                filename: r.filename,
+                ...r.data
+            }));
+
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `lpr-results-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    };
+}
+</script>
+{% endblock %}

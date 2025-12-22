@@ -1,0 +1,390 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}Overview of license plate detections{% endblock %}
+
+{% block content %}
+<div x-data="dashboard()" x-init="init()">
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <!-- Total Detections -->
+        <div class="stat-card">
+            <div class="stat-icon bg-accent-primary/20 text-accent-primary">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+            </div>
+            <div>
+                <p class="stat-value" x-text="stats.totalDetections">0</p>
+                <p class="stat-label">Total Detections</p>
+            </div>
+        </div>
+
+        <!-- Today's Detections -->
+        <div class="stat-card">
+            <div class="stat-icon bg-accent-success/20 text-accent-success">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+            </div>
+            <div>
+                <p class="stat-value" x-text="stats.todayDetections">0</p>
+                <p class="stat-label">Today's Detections</p>
+            </div>
+        </div>
+
+        <!-- Average Confidence -->
+        <div class="stat-card">
+            <div class="stat-icon bg-accent-info/20 text-accent-info">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <div>
+                <p class="stat-value" x-text="(stats.avgConfidence * 100).toFixed(1) + '%'">0%</p>
+                <p class="stat-label">Avg Confidence</p>
+            </div>
+        </div>
+
+        <!-- Active Cameras -->
+        <div class="stat-card">
+            <div class="stat-icon bg-accent-warning/20 text-accent-warning">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+            </div>
+            <div>
+                <p class="stat-value" x-text="stats.activeCameras">0</p>
+                <p class="stat-label">Active Cameras</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Quick Upload Zone -->
+        <div class="lg:col-span-2">
+            <div class="card">
+                <h2 class="text-lg font-semibold text-dark-text mb-4">Quick Detection</h2>
+
+                <div class="upload-zone"
+                     x-data="uploadHandler()"
+                     @dragover.prevent="dragover = true"
+                     @dragleave.prevent="dragover = false"
+                     @drop.prevent="handleDrop($event)"
+                     :class="{ 'dragover': dragover }">
+
+                    <input type="file"
+                           id="quick-upload"
+                           class="hidden"
+                           accept="image/*"
+                           @change="handleFileSelect($event)">
+
+                    <div x-show="!processing && !result">
+                        <svg class="w-12 h-12 mx-auto text-dark-muted mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                        <p class="text-dark-text mb-2">Drop an image here or <label for="quick-upload" class="text-accent-primary cursor-pointer hover:underline">browse</label></p>
+                        <p class="text-sm text-dark-muted">Supports PNG, JPG, JPEG up to 16MB</p>
+                    </div>
+
+                    <!-- Processing State -->
+                    <div x-show="processing" class="py-4">
+                        <svg class="w-12 h-12 mx-auto text-accent-primary animate-spin mb-4" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                        <p class="text-dark-text">Processing image...</p>
+                    </div>
+
+                    <!-- Result Display -->
+                    <div x-show="result" class="text-left">
+                        <div class="flex items-start gap-4">
+                            <img :src="previewUrl" class="w-32 h-24 rounded-lg object-cover bg-dark-hover">
+                            <div class="flex-1">
+                                <template x-if="result && result.plates && result.plates.length > 0">
+                                    <div>
+                                        <template x-for="plate in result.plates" :key="plate.plate_number">
+                                            <div class="mb-2">
+                                                <p class="plate-number" x-text="plate.plate_number || 'No text detected'"></p>
+                                                <p class="text-sm text-dark-muted">
+                                                    Confidence: <span x-text="(plate.detection_confidence * 100).toFixed(1) + '%'"></span>
+                                                </p>
+                                            </div>
+                                        </template>
+                                        <p class="text-sm text-dark-muted mt-2">
+                                            Processed in <span x-text="result.processing_time_ms"></span>ms
+                                        </p>
+                                    </div>
+                                </template>
+                                <template x-if="result && (!result.plates || result.plates.length === 0)">
+                                    <p class="text-dark-muted">No license plates detected</p>
+                                </template>
+                                <button @click="reset()" class="btn-secondary mt-3">
+                                    Upload Another
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Detections -->
+        <div class="card">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-dark-text">Recent Detections</h2>
+                <a href="{{ url_for('views.history') }}" class="text-sm text-accent-primary hover:underline">View All</a>
+            </div>
+
+            <div class="space-y-3">
+                <template x-for="detection in recentDetections" :key="detection.id">
+                    <div class="flex items-center gap-3 p-3 rounded-lg bg-dark-hover/50 hover:bg-dark-hover transition-colors">
+                        <div class="w-16 h-12 rounded bg-dark-border flex items-center justify-center overflow-hidden">
+                            <template x-if="detection.cropped_image_url">
+                                <img :src="detection.cropped_image_url" class="w-full h-full object-cover">
+                            </template>
+                            <template x-if="!detection.cropped_image_url">
+                                <svg class="w-6 h-6 text-dark-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                            </template>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-mono font-bold text-accent-primary truncate" x-text="detection.plate_number || 'Unknown'"></p>
+                            <p class="text-xs text-dark-muted" x-text="formatDate(detection.created_at)"></p>
+                        </div>
+                        <span class="badge badge-success text-xs" x-text="(detection.confidence * 100).toFixed(0) + '%'"></span>
+                    </div>
+                </template>
+
+                <template x-if="recentDetections.length === 0">
+                    <div class="text-center py-8 text-dark-muted">
+                        <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                        </svg>
+                        <p>No detections yet</p>
+                        <a href="{{ url_for('views.upload') }}" class="text-accent-primary hover:underline text-sm">Upload an image</a>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <!-- Detections Chart -->
+        <div class="card">
+            <h2 class="text-lg font-semibold text-dark-text mb-4">Detections Over Time</h2>
+            <div class="h-64 flex items-center justify-center text-dark-muted">
+                <canvas id="detectionsChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Source Distribution -->
+        <div class="card">
+            <h2 class="text-lg font-semibold text-dark-text mb-4">Detection Sources</h2>
+            <div class="h-64 flex items-center justify-center text-dark-muted">
+                <canvas id="sourcesChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+function dashboard() {
+    return {
+        stats: {
+            totalDetections: 0,
+            todayDetections: 0,
+            avgConfidence: 0,
+            activeCameras: 0
+        },
+        recentDetections: [],
+        chartData: null,
+
+        async init() {
+            await this.fetchStats();
+            await this.fetchRecentDetections();
+            this.initCharts();
+        },
+
+        async fetchStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+                if (data.success) {
+                    this.stats.totalDetections = data.stats.total_detections;
+                    this.stats.todayDetections = data.stats.today_detections;
+                    this.stats.avgConfidence = data.stats.average_confidence || 0;
+                    this.stats.activeCameras = data.stats.active_cameras;
+                    this.chartData = data.stats;
+                }
+            } catch (error) {
+                console.error('Failed to fetch stats:', error);
+            }
+        },
+
+        async fetchRecentDetections() {
+            try {
+                const response = await fetch('/api/detections?per_page=5');
+                const data = await response.json();
+                if (data.success) {
+                    this.recentDetections = data.detections;
+                }
+            } catch (error) {
+                console.error('Failed to fetch detections:', error);
+            }
+        },
+
+        formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        },
+
+        initCharts() {
+            // Detections over time chart
+            const detectionsCtx = document.getElementById('detectionsChart');
+            if (detectionsCtx && this.chartData?.detections_by_day) {
+                new Chart(detectionsCtx, {
+                    type: 'line',
+                    data: {
+                        labels: this.chartData.detections_by_day.map(d => d.date),
+                        datasets: [{
+                            label: 'Detections',
+                            data: this.chartData.detections_by_day.map(d => d.count),
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: {
+                                grid: { color: '#334155' },
+                                ticks: { color: '#94a3b8' }
+                            },
+                            y: {
+                                grid: { color: '#334155' },
+                                ticks: { color: '#94a3b8' }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Sources chart
+            const sourcesCtx = document.getElementById('sourcesChart');
+            if (sourcesCtx) {
+                new Chart(sourcesCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Upload', 'Camera', 'URL'],
+                        datasets: [{
+                            data: [65, 30, 5],
+                            backgroundColor: ['#3b82f6', '#22c55e', '#eab308'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { color: '#94a3b8' }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    };
+}
+
+function uploadHandler() {
+    return {
+        dragover: false,
+        processing: false,
+        result: null,
+        previewUrl: null,
+
+        async handleDrop(event) {
+            this.dragover = false;
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                await this.processFile(files[0]);
+            }
+        },
+
+        async handleFileSelect(event) {
+            const files = event.target.files;
+            if (files.length > 0) {
+                await this.processFile(files[0]);
+            }
+        },
+
+        async processFile(file) {
+            if (!file.type.startsWith('image/')) {
+                window.dispatchEvent(new CustomEvent('show-toast', {
+                    detail: { message: 'Please select an image file', type: 'error' }
+                }));
+                return;
+            }
+
+            this.processing = true;
+            this.previewUrl = URL.createObjectURL(file);
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                const response = await fetch('/api/detect', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                this.result = data;
+
+                if (data.success && data.plates?.length > 0) {
+                    window.dispatchEvent(new CustomEvent('show-toast', {
+                        detail: { message: `Detected ${data.plates.length} plate(s)!`, type: 'success' }
+                    }));
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                window.dispatchEvent(new CustomEvent('show-toast', {
+                    detail: { message: 'Failed to process image', type: 'error' }
+                }));
+            } finally {
+                this.processing = false;
+            }
+        },
+
+        reset() {
+            this.result = null;
+            this.previewUrl = null;
+            document.getElementById('quick-upload').value = '';
+        }
+    };
+}
+</script>
+{% endblock %}

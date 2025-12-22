@@ -1,0 +1,137 @@
+<!-- Top Navigation Bar -->
+<header class="sticky top-0 z-30 bg-dark-card/80 backdrop-blur-md border-b border-dark-hover">
+    <div class="flex items-center justify-between px-4 lg:px-6 py-4">
+        <!-- Left side: Page title & breadcrumb -->
+        <div class="flex items-center gap-4">
+            <!-- Mobile menu button -->
+            <button @click="sidebarOpen = !sidebarOpen"
+                    class="lg:hidden p-2 text-dark-muted hover:text-dark-text rounded-lg hover:bg-dark-hover">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+
+            <!-- Page Title -->
+            <div>
+                <h1 class="text-xl font-semibold text-dark-text">
+                    {% block page_title %}Dashboard{% endblock %}
+                </h1>
+                <p class="text-sm text-dark-muted hidden sm:block">
+                    {% block page_subtitle %}License Plate Recognition System{% endblock %}
+                </p>
+            </div>
+        </div>
+
+        <!-- Right side: Actions -->
+        <div class="flex items-center gap-3">
+            <!-- Quick Upload Button -->
+            <a href="{{ url_for('views.upload') }}"
+               class="btn-primary flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 4v16m8-8H4"/>
+                </svg>
+                <span class="hidden sm:inline">Upload</span>
+            </a>
+
+            <!-- System Status -->
+            <div x-data="{ open: false }" class="relative">
+                <button @click="open = !open"
+                        class="p-2 text-dark-muted hover:text-dark-text rounded-lg hover:bg-dark-hover
+                               relative">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+                    </svg>
+                    <!-- Status indicator -->
+                    <span class="absolute top-1 right-1 w-2 h-2 bg-accent-success rounded-full"></span>
+                </button>
+
+                <!-- Dropdown -->
+                <div x-show="open"
+                     @click.away="open = false"
+                     x-transition:enter="transition ease-out duration-100"
+                     x-transition:enter-start="opacity-0 scale-95"
+                     x-transition:enter-end="opacity-100 scale-100"
+                     x-transition:leave="transition ease-in duration-75"
+                     x-transition:leave-start="opacity-100 scale-100"
+                     x-transition:leave-end="opacity-0 scale-95"
+                     class="absolute right-0 mt-2 w-72 bg-dark-card rounded-xl shadow-lg border border-dark-hover
+                            overflow-hidden">
+                    <div class="p-4 border-b border-dark-hover">
+                        <h3 class="font-semibold text-dark-text">System Status</h3>
+                    </div>
+                    <div class="p-4 space-y-3" x-data="systemStatus()" x-init="fetchStatus()">
+                        <!-- GPU Status -->
+                        <div class="flex items-center justify-between">
+                            <span class="text-dark-muted">GPU</span>
+                            <span class="badge"
+                                  :class="status.gpu ? 'badge-success' : 'badge-warning'"
+                                  x-text="status.gpu ? 'Active' : 'CPU Mode'">
+                            </span>
+                        </div>
+                        <!-- Database -->
+                        <div class="flex items-center justify-between">
+                            <span class="text-dark-muted">Database</span>
+                            <span class="badge badge-success">Connected</span>
+                        </div>
+                        <!-- ML Pipeline -->
+                        <div class="flex items-center justify-between">
+                            <span class="text-dark-muted">ML Pipeline</span>
+                            <span class="badge"
+                                  :class="status.pipeline ? 'badge-success' : 'badge-error'"
+                                  x-text="status.pipeline ? 'Ready' : 'Error'">
+                            </span>
+                        </div>
+                        <!-- Processing Time -->
+                        <div class="flex items-center justify-between">
+                            <span class="text-dark-muted">Avg Processing</span>
+                            <span class="text-dark-text" x-text="status.avgTime + 'ms'">--ms</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Refresh Button -->
+            <button onclick="location.reload()"
+                    class="p-2 text-dark-muted hover:text-dark-text rounded-lg hover:bg-dark-hover">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+</header>
+
+<script>
+function systemStatus() {
+    return {
+        status: {
+            gpu: true,
+            pipeline: true,
+            avgTime: '--'
+        },
+        async fetchStatus() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                if (data.gpu_info) {
+                    this.status.gpu = data.gpu_info.using_gpu;
+                }
+                this.status.pipeline = data.components?.ml_pipeline === 'healthy';
+
+                // Get stats for avg processing time
+                const statsResponse = await fetch('/api/stats');
+                const statsData = await statsResponse.json();
+                if (statsData.success) {
+                    this.status.avgTime = statsData.stats.average_processing_time_ms || '--';
+                }
+            } catch (error) {
+                console.error('Failed to fetch status:', error);
+            }
+        }
+    };
+}
+</script>

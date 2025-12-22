@@ -1,0 +1,54 @@
+# License Plate Recognition System - Python Dependencies
+
+# ============================================
+# Core Framework
+# ============================================
+flask==3.0.0
+flask-sqlalchemy==3.1.1
+flask-migrate==4.0.5
+flask-cors==4.0.0
+gunicorn==21.2.0
+gevent==24.2.1
+
+# ============================================
+# Database
+# ============================================
+psycopg2-binary==2.9.9
+redis==5.0.1
+SQLAlchemy==2.0.23
+
+# ============================================
+# ML / Computer Vision
+# ============================================
+# Note: PyTorch installed separately in Dockerfile with CUDA support
+ultralytics==8.3.0
+easyocr==1.7.1
+opencv-python-headless==4.9.0.80
+numpy==1.26.3
+Pillow==10.2.0
+
+# ============================================
+# Utilities
+# ============================================
+python-dotenv==1.0.0
+python-multipart==0.0.6
+requests==2.31.0
+pydantic==2.5.3
+werkzeug==3.0.1
+
+# ============================================
+# Image Processing
+# ============================================
+imageio==2.33.1
+scikit-image==0.22.0
+
+# ============================================
+# Async Support
+# ============================================
+aiofiles==23.2.1
+aiohttp==3.9.1
+
+# ============================================
+# Logging & Monitoring
+# ============================================
+structlog==24.1.0

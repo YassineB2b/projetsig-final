@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  # Main LPR Application
+  lpr-app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: lpr-application
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://lpr:lpr_secure_password@db:5432/lpr_db
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - UPLOAD_FOLDER=/app/storage/uploads
+      - DETECTION_FOLDER=/app/storage/detections
+    ports:
+      - "5000:5000"
+    volumes:
+      - ../storage/uploads:/app/storage/uploads
+      - ../storage/detections:/app/storage/detections
+      - ../storage/logs:/app/storage/logs
+      - ../ml/models:/app/ml/models
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - lpr-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: lpr-database
+    environment:
+      - POSTGRES_USER=lpr
+      - POSTGRES_PASSWORD=lpr_secure_password
+      - POSTGRES_DB=lpr_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - lpr-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lpr -d lpr_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: lpr-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - lpr-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  lpr-network:
+    driver: bridge

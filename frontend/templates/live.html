@@ -1,0 +1,324 @@
+{% extends 'base.html' %}
+
+{% block title %}Live Feed{% endblock %}
+
+{% block page_title %}Live Camera Feed{% endblock %}
+{% block page_subtitle %}Real-time license plate detection{% endblock %}
+
+{% block content %}
+<div x-data="liveFeeds()" x-init="init()">
+    <!-- Controls Bar -->
+    <div class="card mb-6">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <h2 class="text-lg font-semibold text-dark-text">Cameras</h2>
+                <span class="badge badge-info">
+                    <span x-text="cameras.filter(c => c.enabled).length"></span> Active
+                </span>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <!-- Layout Toggle -->
+                <div class="flex items-center bg-dark-hover rounded-lg p-1">
+                    <button @click="layout = '1x1'"
+                            class="p-2 rounded transition-colors"
+                            :class="layout === '1x1' ? 'bg-accent-primary text-white' : 'text-dark-muted hover:text-dark-text'">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        </svg>
+                    </button>
+                    <button @click="layout = '2x2'"
+                            class="p-2 rounded transition-colors"
+                            :class="layout === '2x2' ? 'bg-accent-primary text-white' : 'text-dark-muted hover:text-dark-text'">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <rect x="3" y="3" width="8" height="8" rx="1"/>
+                            <rect x="13" y="3" width="8" height="8" rx="1"/>
+                            <rect x="3" y="13" width="8" height="8" rx="1"/>
+                            <rect x="13" y="13" width="8" height="8" rx="1"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Add Camera Button -->
+                <button @click="showAddModal = true" class="btn-primary flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Add Camera
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera Grid -->
+    <div class="grid gap-4"
+         :class="{
+             'grid-cols-1': layout === '1x1',
+             'grid-cols-1 md:grid-cols-2': layout === '2x2'
+         }">
+
+        <!-- Webcam Feed (Always Available) -->
+        <div class="camera-feed aspect-video" x-show="showWebcam">
+            <img src="/stream/webcam"
+                 class="w-full h-full object-contain bg-black"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="camera-overlay hidden">
+                <div class="text-center text-white">
+                    <svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                    <p>Webcam not available</p>
+                </div>
+            </div>
+            <div class="camera-status online">
+                <span class="w-2 h-2 bg-accent-success rounded-full animate-pulse"></span>
+                <span>Webcam</span>
+            </div>
+        </div>
+
+        <!-- IP Camera Feeds -->
+        <template x-for="camera in cameras.filter(c => c.enabled)" :key="camera.id">
+            <div class="camera-feed aspect-video relative">
+                <img :src="'/stream/video/' + camera.id"
+                     class="w-full h-full object-contain bg-black"
+                     @error="handleCameraError($event, camera)">
+
+                <div class="camera-overlay" x-show="camera.error">
+                    <div class="text-center text-white">
+                        <svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p x-text="camera.error || 'Connection failed'"></p>
+                        <button @click="reconnectCamera(camera)" class="btn-secondary mt-2">
+                            Reconnect
+                        </button>
+                    </div>
+                </div>
+
+                <div class="camera-status" :class="camera.error ? 'offline' : 'online'">
+                    <span class="w-2 h-2 rounded-full"
+                          :class="camera.error ? 'bg-accent-error' : 'bg-accent-success animate-pulse'"></span>
+                    <span x-text="camera.name"></span>
+                </div>
+
+                <!-- Camera Controls -->
+                <div class="absolute bottom-2 right-2 flex gap-2">
+                    <button @click="toggleFullscreen(camera)"
+                            class="p-2 bg-dark-bg/80 rounded-lg text-white hover:bg-dark-bg">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                        </svg>
+                    </button>
+                    <button @click="captureSnapshot(camera)"
+                            class="p-2 bg-dark-bg/80 rounded-lg text-white hover:bg-dark-bg">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </template>
+
+        <!-- No Cameras Placeholder -->
+        <template x-if="cameras.filter(c => c.enabled).length === 0 && !showWebcam">
+            <div class="card text-center py-12">
+                <svg class="w-16 h-16 mx-auto text-dark-muted mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                <h3 class="text-xl font-semibold text-dark-text mb-2">No cameras configured</h3>
+                <p class="text-dark-muted mb-4">Add a camera to start real-time license plate detection</p>
+                <button @click="showAddModal = true" class="btn-primary">
+                    Add Camera
+                </button>
+            </div>
+        </template>
+    </div>
+
+    <!-- Recent Detections Sidebar -->
+    <div class="mt-6">
+        <div class="card">
+            <h3 class="text-lg font-semibold text-dark-text mb-4">Live Detections</h3>
+            <div class="space-y-3 max-h-64 overflow-y-auto">
+                <template x-for="detection in liveDetections" :key="detection.timestamp">
+                    <div class="flex items-center gap-3 p-3 rounded-lg bg-dark-hover/50 animate-in">
+                        <div class="w-12 h-8 rounded bg-dark-border flex items-center justify-center">
+                            <svg class="w-5 h-5 text-dark-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-mono font-bold text-accent-primary" x-text="detection.plate"></p>
+                            <p class="text-xs text-dark-muted" x-text="detection.camera"></p>
+                        </div>
+                        <span class="text-xs text-dark-muted" x-text="detection.time"></span>
+                    </div>
+                </template>
+
+                <template x-if="liveDetections.length === 0">
+                    <p class="text-center text-dark-muted py-4">No detections yet</p>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Camera Modal -->
+    <div x-show="showAddModal"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+
+        <div @click.away="showAddModal = false"
+             class="bg-dark-card rounded-xl shadow-xl max-w-md w-full mx-4 overflow-hidden">
+            <div class="p-6 border-b border-dark-hover">
+                <h3 class="text-xl font-semibold text-dark-text">Add Camera</h3>
+            </div>
+
+            <form @submit.prevent="addCamera()" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-dark-muted mb-2">Camera Name</label>
+                    <input type="text"
+                           x-model="newCamera.name"
+                           class="input"
+                           placeholder="e.g., Entrance Camera"
+                           required>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-dark-muted mb-2">RTSP URL</label>
+                    <input type="text"
+                           x-model="newCamera.rtsp_url"
+                           class="input font-mono text-sm"
+                           placeholder="rtsp://username:password@192.168.1.100:554/stream"
+                           required>
+                    <p class="text-xs text-dark-muted mt-1">Enter the RTSP stream URL for your IP camera</p>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <input type="checkbox"
+                           x-model="newCamera.enabled"
+                           id="camera-enabled"
+                           class="rounded bg-dark-hover border-dark-border text-accent-primary focus:ring-accent-primary">
+                    <label for="camera-enabled" class="text-dark-text">Enable camera</label>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-4">
+                    <button type="button" @click="showAddModal = false" class="btn-secondary">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn-primary">
+                        Add Camera
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function liveFeeds() {
+    return {
+        layout: '2x2',
+        showWebcam: true,
+        cameras: [],
+        liveDetections: [],
+        showAddModal: false,
+        newCamera: {
+            name: '',
+            rtsp_url: '',
+            enabled: true
+        },
+
+        async init() {
+            await this.fetchCameras();
+        },
+
+        async fetchCameras() {
+            try {
+                const response = await fetch('/api/cameras');
+                const data = await response.json();
+                if (data.success) {
+                    this.cameras = data.cameras.map(c => ({ ...c, error: null }));
+                }
+            } catch (error) {
+                console.error('Failed to fetch cameras:', error);
+            }
+        },
+
+        async addCamera() {
+            try {
+                const response = await fetch('/api/cameras', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.newCamera)
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    this.cameras.push({ ...data.camera, error: null });
+                    this.showAddModal = false;
+                    this.newCamera = { name: '', rtsp_url: '', enabled: true };
+                    window.dispatchEvent(new CustomEvent('show-toast', {
+                        detail: { message: 'Camera added successfully', type: 'success' }
+                    }));
+                }
+            } catch (error) {
+                window.dispatchEvent(new CustomEvent('show-toast', {
+                    detail: { message: 'Failed to add camera', type: 'error' }
+                }));
+            }
+        },
+
+        handleCameraError(event, camera) {
+            camera.error = 'Connection failed';
+        },
+
+        async reconnectCamera(camera) {
+            camera.error = null;
+            // Force reload the stream
+            const img = event.target.closest('.camera-feed').querySelector('img');
+            if (img) {
+                img.src = `/stream/video/${camera.id}?t=${Date.now()}`;
+            }
+        },
+
+        toggleFullscreen(camera) {
+            const feed = event.target.closest('.camera-feed');
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                feed.requestFullscreen();
+            }
+        },
+
+        async captureSnapshot(camera) {
+            try {
+                const response = await fetch(`/stream/snapshot/${camera.id}`);
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `snapshot-${camera.name}-${Date.now()}.jpg`;
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                window.dispatchEvent(new CustomEvent('show-toast', {
+                    detail: { message: 'Failed to capture snapshot', type: 'error' }
+                }));
+            }
+        }
+    };
+}
+</script>
+{% endblock %}
