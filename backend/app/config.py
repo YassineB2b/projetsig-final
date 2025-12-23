@@ -43,8 +43,14 @@ class Config:
     # ML Settings
     USE_GPU = os.environ.get('USE_GPU', 'true').lower() == 'true'
     DETECTION_CONFIDENCE = float(os.environ.get('DETECTION_CONFIDENCE', '0.5'))
-    DETECTOR_MODEL_PATH = os.environ.get('DETECTOR_MODEL_PATH', None)
-    OCR_LANGUAGES = os.environ.get('OCR_LANGUAGES', 'en,ar').split(',')
+
+    # Model paths - trained model takes priority if it exists
+    _TRAINED_MODEL = BASE_DIR / 'ml' / 'models' / 'best.pt'
+    DETECTOR_MODEL_PATH = os.environ.get(
+        'DETECTOR_MODEL_PATH',
+        str(_TRAINED_MODEL) if _TRAINED_MODEL.exists() else None
+    )
+    OCR_LANGUAGES = os.environ.get('OCR_LANGUAGES', 'en').split(',')
 
     # Storage settings
     STORAGE_RETENTION_DAYS = int(os.environ.get('STORAGE_RETENTION_DAYS', '30'))

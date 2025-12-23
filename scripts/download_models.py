@@ -17,34 +17,42 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 def download_yolo_model():
     """Download YOLOv8 model."""
-    print("Downloading YOLOv8n model...")
+    print("Downloading YOLOv8m model (medium - better accuracy)...")
 
     from ultralytics import YOLO
 
-    # Download and cache YOLOv8n
-    model = YOLO('yolov8n.pt')
+    # Download and cache YOLOv8m (medium model for better accuracy)
+    model = YOLO('yolov8m.pt')
 
     # Save to models directory
     models_dir = Path(__file__).parent.parent / 'ml' / 'models'
     models_dir.mkdir(parents=True, exist_ok=True)
 
-    # The model is automatically cached by ultralytics
-    print(f"YOLOv8n model downloaded and cached")
-    print(f"Models directory: {models_dir}")
+    # Check if trained model exists
+    trained_model = models_dir / 'best.pt'
+    if trained_model.exists():
+        print(f"Trained license plate model found: {trained_model}")
+        print("This trained model will be used for detection.")
+    else:
+        print(f"YOLOv8m base model downloaded and cached")
+        print(f"Models directory: {models_dir}")
+        print("\nNote: For better license plate detection accuracy, train a custom model:")
+        print("  1. python scripts/download_dataset.py")
+        print("  2. python scripts/train_detector.py")
 
     return True
 
 
 def download_ocr_models():
-    """Download EasyOCR models for English and Arabic."""
-    print("\nDownloading EasyOCR models...")
+    """Download EasyOCR models for English."""
+    print("\nDownloading EasyOCR models (English only)...")
 
     import easyocr
 
     # This will download the models on first use
-    reader = easyocr.Reader(['en', 'ar'], gpu=False, verbose=True)
+    reader = easyocr.Reader(['en'], gpu=False, verbose=True)
 
-    print("EasyOCR models downloaded successfully")
+    print("EasyOCR English models downloaded successfully")
     return True
 
 

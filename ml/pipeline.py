@@ -60,9 +60,9 @@ class LPRPipeline:
             device=device
         )
 
-        # Initialize OCR
+        # Initialize OCR (English only)
         self.ocr = PlateOCR(
-            languages=ocr_languages or ['en', 'ar'],
+            languages=ocr_languages or ['en'],
             use_gpu=self.use_gpu
         )
 

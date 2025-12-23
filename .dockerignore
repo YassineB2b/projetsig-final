@@ -1,0 +1,53 @@
+# Docker ignore file - exclude large files from build context
+
+# Training data (21,000+ images)
+ml/training/data/
+ml/training/runs/
+
+# Downloaded YOLO models (will be downloaded at runtime)
+*.pt
+!ml/models/best.pt
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+.pytest_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Storage (mounted as volume)
+storage/uploads/
+storage/detections/
+storage/logs/
+
+# Test files
+tests/
+*.test.py
+
+# Documentation
+*.md
+!README.md
+
+# Node modules (if any)
+node_modules/
+
+# Misc
+.DS_Store
+Thumbs.db
+*.log
+

@@ -35,8 +35,8 @@ class PlateOCR:
             use_gpu: Whether to use GPU acceleration.
             model_storage_directory: Custom directory for storing OCR models.
         """
-        # Default to English and Arabic for universal plate support
-        self.languages = languages or ['en', 'ar']
+        # Default to English only for license plate support
+        self.languages = languages or ['en']
 
         logger.info(f"Initializing EasyOCR with languages: {self.languages}")
         logger.info(f"GPU enabled: {use_gpu}")
@@ -260,9 +260,8 @@ class PlateOCR:
         if not text:
             return ""
 
-        # Remove unwanted characters (keep alphanumeric, Arabic, spaces, dashes)
-        # Arabic Unicode range: \u0600-\u06FF
-        cleaned = re.sub(r'[^\w\u0600-\u06FF\s\-]', '', text)
+        # Remove unwanted characters (keep alphanumeric, spaces, dashes)
+        cleaned = re.sub(r'[^A-Za-z0-9\s\-]', '', text)
 
         # Uppercase Latin characters
         cleaned = cleaned.upper()

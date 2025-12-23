@@ -24,6 +24,7 @@ services:
       - ../storage/detections:/app/storage/detections
       - ../storage/logs:/app/storage/logs
       - ../ml/models:/app/ml/models
+      - ../ml/training:/app/ml/training
     depends_on:
       db:
         condition: service_healthy

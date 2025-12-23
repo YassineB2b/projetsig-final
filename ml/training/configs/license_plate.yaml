@@ -1,0 +1,26 @@
+# License Plate Detection Dataset Configuration
+# YOLOv8 training configuration for European license plates
+
+# Dataset paths (absolute paths for YOLO training)
+path: C:/Users/death/Documents/sigprojet/ml/training/data
+train: images/train
+val: images/val
+test: images/test
+
+# Class configuration
+nc: 1  # Number of classes
+names:
+  0: license_plate
+
+# Training augmentation settings (applied automatically by YOLO)
+# These can be overridden in the training script
+# augment: true
+# degrees: 10.0        # Rotation (+/- deg)
+# translate: 0.1       # Translation (+/- fraction)
+# scale: 0.5           # Scale (+/- gain)
+# shear: 2.0           # Shear (+/- deg)
+# perspective: 0.0     # Perspective (+/- fraction)
+# flipud: 0.0          # Flip up-down (probability)
+# fliplr: 0.5          # Flip left-right (probability)
+# mosaic: 1.0          # Mosaic augmentation (probability)
+# mixup: 0.0           # Mixup augmentation (probability)

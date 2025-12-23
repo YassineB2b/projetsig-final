@@ -2,6 +2,7 @@
 License Plate Detector using YOLOv8
 
 Provides GPU-accelerated detection of license plates in images.
+Supports custom-trained models for improved accuracy.
 """
 
 import torch
@@ -12,6 +13,10 @@ from ultralytics import YOLO
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Default paths for trained models
+DEFAULT_TRAINED_MODEL = Path(__file__).parent / "models" / "best.pt"
+DEFAULT_BASE_MODEL = "yolov8m.pt"  # Medium model for better accuracy
 
 
 class LicensePlateDetector:
@@ -27,7 +32,7 @@ class LicensePlateDetector:
         Initialize the license plate detector.
 
         Args:
-            model_path: Path to YOLO weights file. If None, uses default YOLOv8n.
+            model_path: Path to YOLO weights file. If None, uses trained model if available.
             confidence_threshold: Minimum confidence for detections (0-1).
             device: Device to use ('cuda', 'cpu', or None for auto).
         """
@@ -36,14 +41,18 @@ class LicensePlateDetector:
 
         logger.info(f"Initializing detector on device: {self.device}")
 
-        # Load model
+        # Load model with priority: explicit path > trained model > base model
         if model_path and Path(model_path).exists():
             logger.info(f"Loading custom model from: {model_path}")
             self.model = YOLO(model_path)
+        elif DEFAULT_TRAINED_MODEL.exists():
+            logger.info(f"Loading trained license plate model from: {DEFAULT_TRAINED_MODEL}")
+            self.model = YOLO(str(DEFAULT_TRAINED_MODEL))
         else:
-            # Use pre-trained YOLOv8n as base (will download if needed)
-            logger.info("Loading YOLOv8n base model")
-            self.model = YOLO('yolov8n.pt')
+            # Use pre-trained YOLOv8m as base (will download if needed)
+            logger.info(f"Loading {DEFAULT_BASE_MODEL} base model (no trained model found)")
+            logger.info("For better accuracy, train a custom model with: python scripts/train_detector.py")
+            self.model = YOLO(DEFAULT_BASE_MODEL)
 
         self.model.to(self.device)
         self._warmup()
